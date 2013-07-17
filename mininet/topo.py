@@ -156,6 +156,7 @@ class Topo(object):
             return self.g.edges()
         else:
             links = [tuple(self.sorted(e)) for e in self.g.edges()]
+            links = list(set(links)) # TODO: hack to remove duplicate edges
             return sorted( links, key=naturalSeq )
 
     def port(self, src, dst):
