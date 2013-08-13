@@ -27,6 +27,7 @@ from mininet.node import RemoteController, Host, OVSSwitch
 from mininet.util import dumpNetConnections, ipAdd, macColonHex
 from mininet.link import Link, Intf
 import traceback
+import time
 
 class DynCLI(CLI):
     "Extended CLI to remove nodes"
@@ -54,6 +55,32 @@ class DynCLI(CLI):
         elif name2 not in self.nodemap:
             error( 'Node(2) %s not exists.\n' % name2)
             return False
+        return True
+
+    def _auto_config_intf(self, node_name, intf_name, **param):
+        node = self.nodemap[node_name]
+        if 'port' not in param:
+            param['port'] = node.newPort()
+        if intf_name == 'auto':
+            intf_name = Link.intfName(node, param['port'])
+        if intf_name in node.nameToIntf:
+            error("Node %s already has interface %s." % (node, name))
+            return False
+        net = self.mn
+        if 'ip' not in param:
+            ip = net.nextIP
+            net.nextIP += 1
+            sufix = ipAdd(ip, ipBaseNum=net.ipBaseNum, prefixLen=net.prefixLen)
+            prefix = '/%s' % net.prefixLen
+            param['ip'] =  sufix + prefix 
+            if 'mac' not in param:
+                param['mac'] = macColonHex(ip)
+        elif 'mac' not in param:
+            ip, prefix = netParse(param['ip'])
+            param['mac'] = macColonHex(ip)
+        if 'cores' not in param and net.autoPinCpus:
+            param['cores'] = self.nextCore
+            net.nextCore = (net.nextCore + 1) % net.numCores
         return True
 
     def _node_deattach_intf(self, node, intf):
@@ -172,7 +199,7 @@ class DynCLI(CLI):
                     if not all:
                         break
 
-    def _parse_args(self, cmd, line):
+    def _parse_add_del_args(self, cmd, line):
         " "
         args = line.split()
         if len(args) < 2:
@@ -204,7 +231,7 @@ class DynCLI(CLI):
 
     def do_add(self, line):
         "Add a network component"
-        args, param = self._parse_args('add', line)
+        args, param = self._parse_add_del_args('add', line)
         if args:
             if args[0] == 'link':
                 self._add_link(args[1], args[2], **param)
@@ -215,7 +242,7 @@ class DynCLI(CLI):
 
     def do_del(self, line):
         "Delete a network"
-        args, param = self._parse_args('del', line)
+        args, param = self._parse_add_del_args('del', line)
         if args:
             if args[0] == 'link':
                 self._del_link(args[1], args[2])
@@ -224,7 +251,7 @@ class DynCLI(CLI):
             else:
                 self._del_node(args[0], args[1])
                 
-    def do_pingall( self, _line ):
+    def do_pingall(self, line):
         "Ping between all hosts that has a interface."
         hosts = [node for node in self.mn.hosts 
                  if node.intf() and hasattr(node.intf(), 'ip')]
@@ -233,10 +260,17 @@ class DynCLI(CLI):
         else:
             error("There's not enough hosts with ip address.\n")
 
-    def do_net( self, _line ):
+    def do_net(self, line):
         "List network connections."
         dumpNetConnections(self.mn)
-
+        
+    def do_wait(selfself, line):
+        " "
+        args = line.split()
+        if len(args) != 1:
+            error('invalid number of args: wait <secs>')
+            return
+        time.sleep(float(args[0]))
 
 def main():
     # Defines the log level
