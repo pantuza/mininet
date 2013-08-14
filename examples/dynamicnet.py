@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python 
 
 """
     This script builds a network using mininet for using with
@@ -300,8 +300,8 @@ def main():
     (options, args) = parser.parse_args()
 
     # Build network topology (see mininet/topo.py)
-    #topo = LinearTopo(int(options.switches), int(options.hosts))
-    topo = LinearTopo()
+    topo = LinearTopo(k=int(options.switches), n=int(options.hosts))
+    #topo = LinearTopo()
 
     # Creates the Network using a remote controller
     #net = Mininet(topo)
