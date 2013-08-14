@@ -272,6 +272,21 @@ class DynCLI(CLI):
             return
         time.sleep(float(args[0]))
 
+    dynHelpStr = (
+        'Dynamic commands:\n'
+        '<add|del> <switch|host|controller> <name>'
+        ' [opt_1[=val_1] ... opt_n[=val_n]]\n'
+        '<add|del> link <name1> <name2> [opt_1[=val_1] ... opt_n[=val_n]]\n'
+        '<add|del> intf <name> <intf_name> [opt_1[=val_1] ... opt_n[=val_n]]\n'
+        '\n'
+    )
+
+    def do_help(self, line):
+        " "
+        CLI.do_help(self, line)
+        output(self.dynHelpStr)
+
+
 def main():
     # Defines the log level
     setLogLevel('info')
