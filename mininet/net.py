@@ -231,28 +231,28 @@ class Mininet( object ):
         """Delete a host."""
         try:
             self.hosts.remove(node)
+            self.delAllIntf(node)
+            node.stop()
         except:
             error('Failure in deletion of the host %s.\n' % node.name)
-        self.delAllIntf(node)
-        node.stop()
 
     def delSwitch( self, node ):
         """Delete a switch."""
         try:
             self.switches.remove(node)
+            self.delAllIntf(node)
+            node.stop()
         except:
             error('Failure in deletion of the switch %s.\n' % node.name)
-        self.delAllIntf(node)
-        node.stop()
 
     def delController( self, node ):
         """Delete a controller."""
         try:
             self.controllers.remove(node)
+            self.delAllIntf(node)
+            node.stop()
         except:
             error('Failure in deletion of the controller %s.\n' % node.name)
-        self.delAllIntf(node)
-        node.stop()
 
     # BL: We now have four ways to look up nodes
     # This may (should?) be cleaned up in the future.
