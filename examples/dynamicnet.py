@@ -1,4 +1,4 @@
-#!/usr/bin/python 
+#!/usr/bin/python
 
 """
     This script builds a network using mininet for using with
@@ -23,104 +23,49 @@ from mininet.topo import LinearTopo
 from mininet.log import setLogLevel, info, output, error
 from mininet.net import Mininet
 from mininet.cli import CLI
-from mininet.node import RemoteController, Host, OVSSwitch
-from mininet.util import dumpNetConnections, ipAdd, macColonHex
-from mininet.link import Link, Intf
+from mininet.node import RemoteController
+from mininet.util import dumpNetConnections
+from mininet.link import Intf
 import traceback
 import time
 
+
 class DynCLI(CLI):
     "Extended CLI to remove nodes"
-    
-    def __init__(self, *args, **kwargs):
-        ""
-        CLI.__init__( self, *args, **kwargs )
 
-    def _net_container(self, type):
-        " "
-        if type == 'switch':
-            return self.mn.switches
-        elif type == 'host':
-            return self.mn.hosts
-        elif type == 'controller':
-            return self.mn.controllers
+    def __init__(self, *args, **kwargs):
+        CLI.__init__(self, *args, **kwargs)
+
+    def _net_delete(self, node_type, node):
+        if node_type == 'switch':
+            self.mn.delSwitch(node)
+        elif node_type == 'host':
+            self.mn.delHost(node)
+        elif node_type == 'controller':
+            self.mn.delController(node)
         else:
-            return None
+            error("Wrong node type %s." % node_type)
 
     def _check_pair(self, name1, name2):
-        " "
         if name1 not in self.nodemap:
-            error( 'Node(1) %s not exists.\n' % name1)
+            error('Node(1) %s not exists.\n' % name1)
             return False
         elif name2 not in self.nodemap:
-            error( 'Node(2) %s not exists.\n' % name2)
+            error('Node(2) %s not exists.\n' % name2)
             return False
         return True
 
-    def _auto_config_intf(self, node_name, intf_name, **param):
-        node = self.nodemap[node_name]
-        if 'port' not in param:
-            param['port'] = node.newPort()
-        if intf_name == 'auto':
-            intf_name = Link.intfName(node, param['port'])
-        if intf_name in node.nameToIntf:
-            error("Node %s already has interface %s." % (node, name))
-            return False
-        net = self.mn
-        if 'ip' not in param:
-            ip = net.nextIP
-            net.nextIP += 1
-            sufix = ipAdd(ip, ipBaseNum=net.ipBaseNum, prefixLen=net.prefixLen)
-            prefix = '/%s' % net.prefixLen
-            param['ip'] =  sufix + prefix 
-            if 'mac' not in param:
-                param['mac'] = macColonHex(ip)
-        elif 'mac' not in param:
-            ip, prefix = netParse(param['ip'])
-            param['mac'] = macColonHex(ip)
-        if 'cores' not in param and net.autoPinCpus:
-            param['cores'] = self.nextCore
-            net.nextCore = (net.nextCore + 1) % net.numCores
-        return True
-
-    def _node_deattach_intf(self, node, intf):
-        " "
-        if isinstance(node, OVSSwitch):
-            node.detach(intf)
-        try:
-            port = node.ports[intf]
-            del node.intfs[port]
-            del node.ports[intf]
-            del node.nameToIntf[intf.name]
-        except:
-            pass
-
-    def _node_attach_intf(self, node, intf):
-        " "
-        if isinstance(node, Host):
-            node.configDefault()
-        elif isinstance(node, OVSSwitch):
-            node.attach(intf)
-
-    def _delete_link(self, link):
-        link.delete()
-        intf1, intf2 = link.intf1, link.intf2
-        node1, node2 = intf1.node, intf2.node
-        self._node_deattach_intf(node1, intf1)
-        self._node_deattach_intf(node2, intf2)
-
-    def _add_node(self, type, name, **param):
-        " "
+    def _add_node(self, node_type, name, **param):
         if name in self.nodemap:
-            error( 'Already exists node %s\n' % name)
+            error('Already exists node %s\n' % name)
             return
         # Add to Mininet
-        if type == 'host':
+        if node_type == 'host':
             node = self.mn.addHost(name, **param)
-        elif type == 'switch':
+        elif node_type == 'switch':
             node = self.mn.addSwitch(name, **param)
             node.start(self.mn.controllers)
-        elif type == 'controller':
+        elif node_type == 'controller':
             node = self.mn.addController(name, **param)
             node.start()
         # Add to CLI
@@ -129,101 +74,85 @@ class DynCLI(CLI):
         info("!!! New node pid = %s.\n" % str(node.pid))
 
     def _add_intf(self, node_name, intf_name, **param):
-        " "
         info("Use 'add link' instead.\n")
-        
+
     def _add_link(self, name1, name2, **param):
-        " "
         if not self._check_pair(name1, name2):
             return
         node1, node2 = self.nodemap[name1], self.nodemap[name2]
         link = self.mn.addLink(node1, node2, **param)
-        info('*** Starting link %s...\n' % link)
-        #  Activate interfaces
-        self._node_attach_intf(link.intf1.node, link.intf1)
-        self._node_attach_intf(link.intf2.node, link.intf2)
-
-    def _del_node(self, type, name):
-        " "
+        
+    def _del_node(self, node_type, name):
         if name not in self.nodemap:
-            error( 'Node %s not exists.\n' % name)
+            error('Node %s not exists.\n' % name)
             return
         node = self.nodemap[name]
         # Remove from Mininet
-        container = self._net_container(type)
-        if node not in container:
-            error( 'Is %s a %s?\n' % (name, type))
+        if node_type == 'switch':
+            self.mn.delSwitch(node)
+        elif node_type == 'host':
+            self.mn.delHost(node)
+        elif node_type == 'controller':
+            self.mn.delController(node)
+        else:
+            error("Wrong node type %s." % node_type)
             return
-        info( '*** Stopping %s %s...\n' % (type, name))
-        # Remove links (interfaces pairs)
-        for intf in node.intfList():
-            link = intf.link
-            if link:
-                info( '--- Deleting link %s...\n' % link)
-                self._delete_link(link)
-        node.stop()
-        try:
-            container.remove(node)
-        except:
-            error('Cleanup failure of %s %s.\n' % (type, name))
         # Remove from CLI
         del self.nodemap[name]
         self.nodelist.remove(node)
 
     def _del_intf(self, node_name, intf_name):
-        " "
         if node_name not in self.nodemap:
-            error( 'Node %s not exists.\n' % node_name)
+            error('Node %s not exists.\n' % node_name)
             return
         node = self.nodemap[node_name]
         if intf_name not in node.nameToIntf:
-            error("Node %s hasn't interface %s." % (node, name))
+            error("Node %s hasn't interface %s." % (node_name, intf_name))
             return
         intf = node.nameToIntf[intf_name]
-        self._node_deattach_intf(node, intf)
         intf.delete()
 
-    def _del_link(self, name1, name2, all=True):
-        " "
+    def _param_intf_name_to_port(self, param_intf, param_port, node, param):
+        if (param_intf in param):
+            intf_name = param[param_intf]
+            del param[param_intf]
+            if isinstance(intf_name, basestring):
+                intf = node.getIntf(intf_name)
+                if isinstance(intf, Intf):
+                    param[param_port] = node.getPort(intf)
+
+    def _del_link(self, name1, name2, **param):
         if not self._check_pair(name1, name2):
             return
-        src_node, dst_node = self.nodemap[name1], self.nodemap[name2]
-        for intf in src_node.intfList():
-            link = intf.link
-            if link:
-                node1, node2 = link.intf1.node, link.intf2.node
-                if (node1 == src_node and node2 == dst_node) or \
-                   (node1 == dst_node and node2 == src_node):
-                    info('*** Deleting link %s...\n' % link)
-                    self._delete_link(link)
-                    if not all:
-                        break
+        node1, node2 = self.nodemap[name1], self.nodemap[name2]
+        self._param_intf_name_to_port('intf1', 'port1', node1, param)
+        self._param_intf_name_to_port('intf2', 'port2', node2, param)
+        self.mn.delLink(node1, node2, **param)
 
     def _parse_add_del_args(self, cmd, line):
-        " "
         args = line.split()
         if len(args) < 2:
-            error('invalid number of args: ' + cmd + ' <type> <param [...]>')
+            error('invalid number of args: ' + cmd)
             return None, None
         elif args[0] not in ['switch', 'host', 'controller', 'intf', 'link']:
-            error('invalid network component type: ' + cmd + 
-                  ' <switch|host|intf|link|controller> <name1> [<name2>]' +
-                  ' [opt_1[=val_1] ... opt_n[=val_n]]\n')
+            error('invalid network component type: ' + cmd +
+                  ' <switch|host|intf|link|controller>\n')
             return None, None
         elif args[0] == 'link' and len(args) < 3:
-            error('invalid number of args: ' + cmd +
-                  ' link <name1> <name2> [opt_1[=val_1] ... opt_n[=val_n]]\n')
+            error('invalid number of args: ' + cmd + ' link')
             return None, None
         if args[0] == 'intf' and len(args) < 3:
-            error('invalid number of args: ' + cmd + ' intf <node> ' +
-                  '[<name>|auto] [opt_1[=val_1] ... opt_n[=val_n]]\n')
+            error('invalid number of args: ' + cmd + ' intf')
             return None, None
         param = {}
         opt_pos = 3 if args[0] in ['link', 'intf'] else 2
         for opt_param in args[opt_pos:]:
             opt, sep, str_val = opt_param.partition('=')
             if str_val:
-                val = eval(str_val)
+                try:
+                    val = eval(str_val)
+                except:
+                    val = str_val
             else:
                 val = True
             param[opt] = val
@@ -245,15 +174,15 @@ class DynCLI(CLI):
         args, param = self._parse_add_del_args('del', line)
         if args:
             if args[0] == 'link':
-                self._del_link(args[1], args[2])
+                self._del_link(args[1], args[2], **param)
             elif args[0] == 'intf':
                 self._del_intf(args[1], args[2])
             else:
                 self._del_node(args[0], args[1])
-                
+
     def do_pingall(self, line):
         "Ping between all hosts that has a interface."
-        hosts = [node for node in self.mn.hosts 
+        hosts = [node for node in self.mn.hosts
                  if node.intf() and hasattr(node.intf(), 'ip')]
         if len(hosts) > 1:
             self.mn.ping(hosts)
@@ -263,7 +192,7 @@ class DynCLI(CLI):
     def do_net(self, line):
         "List network connections."
         dumpNetConnections(self.mn)
-        
+
     def do_wait(selfself, line):
         " "
         args = line.split()
@@ -274,10 +203,15 @@ class DynCLI(CLI):
 
     dynHelpStr = (
         'Dynamic commands:\n'
-        '<add|del> <switch|host|controller> <name>'
-        ' [opt_1[=val_1] ... opt_n[=val_n]]\n'
-        '<add|del> link <name1> <name2> [opt_1[=val_1] ... opt_n[=val_n]]\n'
-        '<add|del> intf <name> <intf_name> [opt_1[=val_1] ... opt_n[=val_n]]\n'
+        'add <switch|host|controller> <name>'
+        ' [<opt_1>[=<val_1>]]... [<opt_n>[=<val_n>]]\n'
+        'add link <name1> <name2> '
+        '[<opt_1>[=<val_1>]] ... [<opt_n>[=<val_n>]]\n'
+        'add intf <name> <auto|<intf_name>> '
+        '[<opt_1>[=<val_1>]] ... [<opt_n>[=<val_n>]] (not implemented!)\n'
+        'del <switch|host|controller> <name>\n'
+        'del link <name1> <name2> [intf1=<intf1_name>] [intf2=<intf2_name>]\n'
+        'del intf <name> <intf_name>\n'
         '\n'
     )
 
@@ -315,11 +249,11 @@ def main():
         try:
             DynCLI(net)
             break
-        except Exception as e:
-            error('Fail: %s\n Args: %s \n %s \n' % (type(e), e.args, e))
+        except Exception as obj:
+            error('Fail: %s\n Args: %s \n %s \n' % (type(obj), obj.args, obj))
             traceback.print_exc()
             continue
-        
+
     # Stop the network
     net.stop()
 

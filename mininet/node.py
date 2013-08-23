@@ -352,6 +352,33 @@ class Node( object ):
             debug( 'moving', intf, 'into namespace for', self.name, '\n' )
             moveIntf( intf.name, self )
 
+    def getPort(self, intf):
+        " Returns a port of a node interface "
+        try:
+            port = self.ports[intf]
+        except:
+            port = None
+        return port
+
+    def getIntf(self, intf_name):
+        " Returns a port of a node interface "
+        try:
+            intf = self.nameToIntf[intf_name]
+        except:
+            intf = None
+        return intf
+
+    def delIntf(self, intf):
+        """ Delete an interface.
+            intf: interface """
+        try:
+            port = self.ports[intf]
+            del self.intfs[port]
+            del self.ports[intf]
+            del self.nameToIntf[intf.name]
+        except:
+            error('Failure in deletion of the interface %s.\n' % intf.name)
+
     def defaultIntf( self ):
         "Return interface for lowest port"
         ports = self.intfs.keys()
@@ -525,6 +552,14 @@ class Node( object ):
     def intfNames( self ):
         "The names of our interfaces sorted by port number"
         return [ str( i ) for i in self.intfList() ]
+
+    def attach( self, intf ):
+        "Connect a data port"
+        self.configDefault()
+
+    def detach( self, intf ):
+        "Disconnect a data port"
+        pass
 
     def __repr__( self ):
         "More informative string representation"
@@ -966,6 +1001,11 @@ class OVSSwitch( Switch ):
         "Disconnect a data port"
         self.cmd( 'ovs-vsctl del-port', self, intf )
 
+    def delIntf( self, intf ):
+        " Delete an interface "
+        super(Switch, self).delIntf(intf)
+        self.detach(intf)
+        
     def controllerUUIDs( self ):
         "Return ovsdb UUIDs for our controllers"
         uuids = []

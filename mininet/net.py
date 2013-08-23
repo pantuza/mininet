@@ -217,6 +217,43 @@ class Mininet( object ):
             self.nameToNode[ name ] = controller_new
         return controller_new
 
+    def delAllIntf(self, node):
+        for intf in node.intfList():
+            link = intf.link
+            if link:
+                info( '--- Deleting link %s...\n' % link)
+                link.delete()
+            else:
+                info( '--- Deleting interface %s...\n' % intf)
+                node.delIntf(intf)
+
+    def delHost( self, node ):
+        """Delete a host."""
+        try:
+            self.hosts.remove(node)
+        except:
+            error('Failure in deletion of the host %s.\n' % node.name)
+        self.delAllIntf(node)
+        node.stop()
+
+    def delSwitch( self, node ):
+        """Delete a switch."""
+        try:
+            self.switches.remove(node)
+        except:
+            error('Failure in deletion of the switch %s.\n' % node.name)
+        self.delAllIntf(node)
+        node.stop()
+
+    def delController( self, node ):
+        """Delete a controller."""
+        try:
+            self.controllers.remove(node)
+        except:
+            error('Failure in deletion of the controller %s.\n' % node.name)
+        self.delAllIntf(node)
+        node.stop()
+
     # BL: We now have four ways to look up nodes
     # This may (should?) be cleaned up in the future.
     def getNodeByName( self, *args ):
@@ -252,7 +289,20 @@ class Mininet( object ):
         defaults.update( params )
         if not cls:
             cls = self.link
-        return cls( node1, node2, **defaults )
+        link = cls( node1, node2, **defaults )
+        #  Activate interfaces
+        link.intf1.node.attach(link.intf1)
+        link.intf2.node.attach(link.intf2)
+        return link
+
+
+    def delLink( self, node1, node2, port1=None, port2=None):
+        for intf1, intf2 in node1.connectionsTo(node2):
+            port11 = node1.getPort(intf1)
+            port22 = node2.getPort(intf2)
+            if ((not port1) or (port1 == port11)) and \
+               ((not port2) or (port2 == port22)):
+                intf1.link.delete()
 
     def configHosts( self ):
         "Configure a set of hosts."

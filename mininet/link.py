@@ -160,6 +160,8 @@ class Intf( object ):
 
     def delete( self ):
         "Delete interface"
+        if self.node:
+            self.node.delIntf(self)
         self.cmd( 'ip link del ' + self.name )
         if self.node.inNamespace:
             # Link may have been dumped into root NS
